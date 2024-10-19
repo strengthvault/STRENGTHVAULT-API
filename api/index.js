@@ -5,7 +5,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 
-import './services/cronServices.js'; // Aquí importas el cron job
+import './../services/cronServices.js'; // Aquí importas el cron job
 import userRoutes from './routes/userRoutes.js';
 
 const app = express();
