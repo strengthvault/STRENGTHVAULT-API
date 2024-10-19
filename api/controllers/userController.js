@@ -1,4 +1,4 @@
-import { createUser, loginUser, getAllUsers, updateUserAccessAndTimeAlive } from './../../services/userService.js';
+import { createUser, loginUser, getAllUsers, updateUserAccessAndTimeAlive,  logoutUser, deleteUser } from './../../services/userService.js';
 
 export async function getAllUsersController(req, res) {
     try {
@@ -43,7 +43,26 @@ export async function login(req, res) {
 }
 
 
-import { deleteUser } from './../../services/userService.js';
+export async function logout(req, res) {
+    try {
+        const token = req.headers['auth-token'];
+
+        // Asegurarnos de que el token esté presente y sea válido
+        if (!token) {
+            return res.status(400).json({ message: 'No token provided' });
+        }
+
+        const result = await logoutUser(token);
+        
+
+        res.status(200).json(result);
+        console.log(result)
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({ message: error.message });
+    }
+}
+
 
 export async function deleteUserController(req, res) {
     try {

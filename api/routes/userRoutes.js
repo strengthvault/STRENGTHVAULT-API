@@ -3,10 +3,13 @@ import express from 'express';
 import { 
     register, 
     login, 
+    logout,
     getAllUsersController, 
     updateUserAccessController, 
     deleteUserController 
 } from '../controllers/userController.js';
+
+
 import { getOEmbed } from '../controllers/vimeoController.js';
 
 import { 
@@ -21,6 +24,7 @@ const router = express.Router();
 
 router.post('/api/users/register', register);
 router.post('/api/login', login);
+router.post('/api/logout', logout)
 
 router.get('/api/users', getAllUsersController);
 

@@ -9,53 +9,48 @@ dotenv.config();  // Debe estar en la primera línea antes de cualquier importac
 const client = new MongoClient(process.env.MONGO_URI);
 const database = client.db('pruebas');
 const usersCollection = database.collection('users');
+const tokensCollection = database.collection('tokens');
 
+// Obtener todos los usuarios
 export async function getAllUsers() {
     await client.connect();
 
     const users = await usersCollection.find({ role: 'common' }).toArray();
 
-    // Iterar sobre cada usuario y calcular `daysLeft` si tiene `futureDate`
     const updatedUsers = users.map(user => {
         if (user.futureDate) {
             const currentDate = new Date();
             const futureDate = new Date(user.futureDate);
 
-            // Calcular la diferencia en días entre la fecha actual y la `futureDate`
             const timeDifference = futureDate - currentDate;
-            const daysLeft = Math.max(0, Math.floor(timeDifference / (1000 * 60 * 60 * 24))); // Convertir a días
+            const daysLeft = Math.max(0, Math.floor(timeDifference / (1000 * 60 * 60 * 24)));
 
-            // Actualizar el valor de `daysLeft` en el usuario
             return {
                 ...user,
                 daysLeft
             };
         }
 
-        // Si no tiene `futureDate`, simplemente retornamos el usuario sin cambios
         return user;
     });
 
     return updatedUsers;
 }
 
+// Crear un nuevo usuario
 export async function createUser(userData) {
-    // Validamos los datos con yup
     const validatedUserData = await userSchema.validate(userData);
 
-    // Encriptamos la contraseña
     const hashedPassword = bcrypt.hashSync(validatedUserData.password, 8);
     validatedUserData.password = hashedPassword;
 
-    // Insertamos el usuario en la base de datos
     await client.connect();
     const result = await usersCollection.insertOne(validatedUserData);
-    return result; // Devuelve el usuario recién creado
+    return result;
 }
 
-
+// Iniciar sesión y generar un token
 export async function loginUser(username, password) {
-    console.log(username, password);
     await client.connect();
     const user = await usersCollection.findOne({ username });
     
@@ -64,44 +59,82 @@ export async function loginUser(username, password) {
     const isPasswordValid = bcrypt.compareSync(password, user.password);
     if (!isPasswordValid) throw new Error('Invalid password');
 
-    // Verificamos si el usuario tiene una `futureDate` y si está caducada
     let isCaducate = false;
     if (user.futureDate) {
         const currentDate = new Date();
         const futureDate = new Date(user.futureDate);
 
-        // Si la fecha futura es menor o igual a la actual, el acceso ha caducado
         if (futureDate <= currentDate) {
             isCaducate = true;
         }
     }
 
-    // Incluimos el valor de isCaducate en la respuesta del usuario
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
         expiresIn: 86400 // 24 hours
     });
 
-    // Devolvemos el token y el usuario con la propiedad isCaducate
+    // Guardamos el token en la base de datos
+    await tokensCollection.insertOne({ token, userId: user._id, createdAt: new Date() });
+
     return { 
         token, 
         user: {
             ...user, 
-            isCaducate // Añadimos la propiedad isCaducate
+            isCaducate
         }
     };
 }
 
+// Cerrar sesión eliminando el token de la base de datos
+export async function logoutUser(token) {
+    console.log(token)
+    await client.connect();
 
+    // Asegurarnos de que el token sea un string y no un objeto circular
+    if (typeof token !== 'string') {
+        throw new Error('Token is not a valid string');
+    }
+
+    const result = await tokensCollection.deleteOne({ token });
+
+    if (result.deletedCount === 0) {
+        throw new Error('Token not found');
+    }
+
+    return { message: 'Logout exitoso' };
+}
+
+
+// Verificar el token en cada solicitud
+export async function verifyToken(req, res, next) {
+    const token = req.headers['auth-token'];
+    if (!token) return res.status(401).json({ message: 'Acceso denegado' });
+
+    try {
+        const verified = jwt.verify(token, process.env.JWT_SECRET);
+
+        await client.connect();
+        const tokenInDB = await tokensCollection.findOne({ token });
+
+        if (!tokenInDB) {
+            return res.status(401).json({ message: 'Token inválido o expirado' });
+        }
+
+        req.user = verified;
+        next();
+    } catch (error) {
+        res.status(400).json({ message: 'Token no válido' });
+    }
+}
+
+// Eliminar un usuario
 export async function deleteUser(userId) {
-    // Verificar si el userId es válido
     if (!ObjectId.isValid(userId)) {
         throw new Error("El ID proporcionado no es válido");
     }
 
-    // Nos conectamos a la base de datos
     await client.connect();
 
-    // Intentamos eliminar el usuario de la base de datos
     const result = await usersCollection.deleteOne({ _id: new ObjectId(userId) });
 
     if (result.deletedCount === 0) {
@@ -111,43 +144,37 @@ export async function deleteUser(userId) {
     return { message: 'Usuario eliminado correctamente' };
 }
 
-
-
+// Actualizar el acceso del usuario y el tiempo restante
 export async function updateUserAccessAndTimeAlive(userId, userData) {
     const { futureDate, allowAllAccess } = userData;
 
-    // Verificar si el userId es válido
     if (!ObjectId.isValid(userId)) {
         throw new Error("El ID proporcionado no es válido");
     }
 
-    // Nos conectamos a la base de datos
     await client.connect();
 
-    // Convertimos la fecha ingresada en un objeto Date
     const targetDate = new Date(futureDate);
     const currentDate = new Date();
 
-    // Calcular la diferencia de tiempo entre la fecha actual y la fecha futura
     const timeDifference = targetDate - currentDate;
-    const timeAlive = Math.max(0, Math.floor(timeDifference / (1000 * 60 * 60 * 24))); // Convertir a días
+    const timeAlive = Math.max(0, Math.floor(timeDifference / (1000 * 60 * 60 * 24)));
 
-    // Actualizamos el usuario en la base de datos
     const updatedUser = await usersCollection.findOneAndUpdate(
         { _id: new ObjectId(userId) }, 
         { 
             $set: { 
                 allowAllAccess: allowAllAccess, 
-                futureDate: targetDate, // Guardar la fecha ingresada
-                daysLeft: timeAlive // Guardar los días restantes calculados
+                futureDate: targetDate, 
+                daysLeft: timeAlive 
             }
         },
-        { returnDocument: 'after' } // Retorna el documento actualizado
+        { returnDocument: 'after' }
     );
 
     if (!updatedUser) {
         throw new Error('Usuario no encontrado');
     }
 
-    return updatedUser; // Devolvemos el usuario actualizado
+    return updatedUser;
 }
