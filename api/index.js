@@ -1,24 +1,22 @@
-import express from 'express';
-import cors from 'cors';
-import userRoutes from './routes/userRoutes.js';
 import dotenv from 'dotenv';
+dotenv.config();  // Debe estar en la primera línea antes de cualquier importación
 
-dotenv.config();
+import express from 'express';
+import bodyParser from 'body-parser';
+import cors from 'cors';
+
+import './services/cronServices.js'; // Aquí importas el cron job
+import userRoutes from './routes/userRoutes.js';
+
 const app = express();
 
-const corsOptions = {
-  origin: 'https://strengthvault-front.vercel.app', // Solo permite tu frontend
-  methods: 'GET,POST,PUT,DELETE',
-  allowedHeaders: 'Content-Type,Authorization',
-  credentials: true // Esto permite que las cookies/credenciales se envíen
-};
+app.use(cors());
+app.use(bodyParser.json());
+app.options('*', function (req,res) { res.sendStatus(200); });
+app.use(express.urlencoded({ extended: true}))
+app.use(express.json())
 
-app.options('*', cors(corsOptions)); // Manejar solicitudes preflight con las mismas opciones de CORS
-
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 app.use('/', userRoutes);
 
-export default app;
+export default app
