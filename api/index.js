@@ -10,7 +10,16 @@ import './services/cronServices.js'; // Aquí importas el cron job
 
 const app = express();
 
-app.use(cors());
+const corsOptions = {
+  origin: 'https://strengthvault-front.vercel.app', // Tu frontend
+  methods: 'GET,POST,PUT,DELETE',
+  allowedHeaders: 'Content-Type,Authorization',
+  credentials: true // Permitir credenciales si es necesario
+};
+
+app.use(cors(corsOptions));
+
+
 app.use(bodyParser.json());
 app.options('*', function (req,res) { res.sendStatus(200); });
 app.use(express.urlencoded({ extended: true}))
