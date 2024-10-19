@@ -51,11 +51,14 @@ export async function createUser(userData) {
 
 // Iniciar sesión y generar un token
 export async function loginUser(username, password) {
+
     await client.connect();
     const user = await usersCollection.findOne({ username });
     
     if (!user) throw new Error('User not found');
 
+    console.log(user); // Verificar si el campo role está presente
+    
     const isPasswordValid = bcrypt.compareSync(password, user.password);
     if (!isPasswordValid) throw new Error('Invalid password');
 
@@ -69,11 +72,15 @@ export async function loginUser(username, password) {
         }
     }
 
+    // Verificar si el campo role existe antes de generar el token
+    if (!user.role) {
+        throw new Error('User role is missing');
+    }
+
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
         expiresIn: 86400 // 24 hours
     });
 
-    // Guardamos el token en la base de datos
     await tokensCollection.insertOne({ token, userId: user._id, createdAt: new Date() });
 
     return { 
@@ -84,6 +91,7 @@ export async function loginUser(username, password) {
         }
     };
 }
+
 
 // Cerrar sesión eliminando el token de la base de datos
 export async function logoutUser(token) {
