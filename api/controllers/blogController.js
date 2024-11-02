@@ -10,73 +10,71 @@ const __dirname = dirname(__filename);
 
 export async function uploadBlogController(req, res) {
     try {
-        // Ruta al archivo de video
-        //const videoPath = path.join(__dirname, './../../uploads', req.file.filename);
-
-        // Subir video a Vimeo y agregar dominios a la whitelist
-        /*const videoUri = await uploadToVimeo(videoPath, {
+        console.log('Archivo recibido:', req.file, req.body);
+        // Asegúrate de que el archivo de video esté disponible
+        if (!req.file) {
+            return res.status(400).json({ message: 'Archivo de video es requerido' });
+        }
+   
+        // Ruta al archivo de video usando el archivo subido por Multer
+        const videoPath = path.join(__dirname, './../../uploads', req.file.filename);
+   
+        // Sube el video a Vimeo y establece dominios en la whitelist
+        const videoUri = await uploadToVimeo(videoPath, {
             nombre: req.body.nombre,
             descripcion: req.body.descripcion
-        });*/
+        });
 
-        // Crear la URL de Vimeo
-
-        //const videoUrl = `https://vimeo.com${videoUri}`; // Asumiendo que videoUri es algo como "/123456789"
-
-        // Crear el blog con la URL del video en Vimeo
+        // Extrae solo el ID del video de Vimeo
+        const videoId = videoUri.split('/').pop();
+   
+        // Crea el blog en la base de datos con la URL del video en Vimeo
         const blog = await uploadBlog({
             nombre: req.body.nombre,
             descripcion: req.body.descripcion,
-            url: 'https://www.youtube.com/watch?v=pXMyhv7jTdU&ab_channel=StrengthIsScience', // Guarda la URL de Vimeo
+            url: `https://vimeo.com/${videoId}`,
             fecha: new Date(),
             categoria: req.body.categoria,
             uploadedBy: req.userId
         });
-
-        res.status(201).json({ ...blog/*, videoUrl*/ });
+   
+        res.status(201).json({ ...blog, videoUrl: `https://vimeo.com/${videoId}` });
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
 }
 
 
-
 export async function updateBlogController(req, res) {
-    const userId = req.params.id
     try {
-
-
-            // Ruta al archivo de video
-            /*const videoPath = path.join(__dirname, './../../uploads', req.file.filename);
-
-            // Subir video a Vimeo
+        const userId = req.params.id;
+   
+        // Verificar si hay un archivo de video para actualizar en Vimeo
+        let videoUrl;
+        if (req.file) {
+            const videoPath = path.join(__dirname, './../../uploads', req.file.filename);
             const videoUri = await uploadToVimeo(videoPath, {
                 nombre: req.body.nombre,
                 descripcion: req.body.descripcion
             });
-
-            // Crear la URL del nuevo video en Vimeo
-            const videoUrl = `https://vimeo.com${videoUri}`; */
-     
-
-            const updatedBlogData = await updateBlog(userId, {
-                nombre: req.body.nombre,
-                descripcion: req.body.descripcion,
-                url: 'https://www.youtube.com/watch?v=pXMyhv7jTdU&ab_channel=StrengthIsScience', //videoUrl, // Guarda la URL de Vimeo
-                fecha: new Date(),
-                categoria: req.body.categoria,
-            });
-
-        // Construir los datos actualizados del blog
-
-        // Actualizar el blog en la base de datos
-        //const updatedBlog = await updateBlog(req.params.id, updatedBlogData);
-
-        res.status(200).json(updatedBlogData);
+            videoUrl = `https://vimeo.com${videoUri}`;
+        }
+   
+        const updatedBlogData = {
+            nombre: req.body.nombre,
+            descripcion: req.body.descripcion,
+            url: videoUrl || undefined, // Solo actualizar si hay nuevo video
+            fecha: new Date(),
+            categoria: req.body.categoria,
+        };
+   
+        const updatedBlog = await updateBlog(userId, updatedBlogData);
+        res.status(200).json(updatedBlog);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
 }
+
 
 export async function getBlogByIdController(req, res) {
     try {
@@ -93,16 +91,16 @@ export async function getAllBlogsController(req, res) {
         const blogs = await getAllBlogs();
 
         // Verifica el estado de cada video
-        /*const blogsWithStatus = await Promise.all(blogs.map(async (blog) => {
+        const blogsWithStatus = await Promise.all(blogs.map(async (blog) => {
             const videoId = blog.url.split('/').pop();  // Extraer el ID del video desde la URL de Vimeo
             const status = await checkVideoStatus(videoId);
             return {
                 ...blog,
                 videoStatus: status
             };
-        }));*/
+        }));
 
-        res.status(200).json(/*blogsWithStatus*/ blogs);
+        res.status(200).json(blogsWithStatus);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
