@@ -22,11 +22,11 @@
     "express": "^4.21.1",
     "fs-extra": "^11.2.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.7.2",
+    "mongoose": "^8.8.0",
     "multer": "1.4.5-lts.1",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
-    "pnpm": "^9.12.2",
+    "pnpm": "^9.12.3",
     "vimeo": "^2.3.1",
     "yup": "^1.4.0"
   },
