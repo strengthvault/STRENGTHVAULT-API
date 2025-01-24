@@ -37,17 +37,51 @@ export async function getAllUsers() {
     return updatedUsers;
 }
 
+// Obtener todos los usuarios
+
+export async function getUserById(userId) {
+    await client.connect();
+    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    return user;
+}
+
 // Crear un nuevo usuario
 export async function createUser(userData) {
     const validatedUserData = await userSchema.validate(userData);
-
+  
+    await client.connect();
+  
+    // 1. Revisar si ya existe el username
+    const existingUserByUsername = await usersCollection.findOne({
+      username: validatedUserData.username
+    });
+    if (existingUserByUsername) {
+      throw new Error('El nombre de usuario ya está en uso');
+    }
+  
+    // 2. Revisar si ya existe el email
+    if (validatedUserData.email) {
+      const existingUserByEmail = await usersCollection.findOne({
+        email: validatedUserData.email
+      });
+      if (existingUserByEmail) {
+        throw new Error('El email ya está registrado');
+      }
+    }
+  
+    // Encriptar password y crear usuario
     const hashedPassword = bcrypt.hashSync(validatedUserData.password, 8);
     validatedUserData.password = hashedPassword;
-
-    await client.connect();
+  
     const result = await usersCollection.insertOne(validatedUserData);
-    return result;
-}
+    const insertedUser = {
+      ...validatedUserData,
+      _id: result.insertedId
+    };
+  
+    return insertedUser;
+  }
+
 
 // Iniciar sesión y generar un token
 export async function loginUser(username, password) {
@@ -55,12 +89,12 @@ export async function loginUser(username, password) {
     await client.connect();
     const user = await usersCollection.findOne({ username });
     
-    if (!user) throw new Error('User not found');
+    if (!user) throw new Error('Usuario incorrecto. No existe.');
 
     console.log(user); // Verificar si el campo role está presente
     
     const isPasswordValid = bcrypt.compareSync(password, user.password);
-    if (!isPasswordValid) throw new Error('Invalid password');
+    if (!isPasswordValid) throw new Error('Contraseña incorrecta');
 
     let isCaducate = false;
     if (user.futureDate) {
@@ -154,14 +188,14 @@ export async function deleteUser(userId) {
 
 // Actualizar el acceso del usuario y el tiempo restante
 export async function updateUserAccessAndTimeAlive(userId, userData) {
-    const { futureDate, allowAllAccess } = userData;
+    const { futureDate, allowAllAccess, paymentHistory, selectedMonth, category } = userData;
 
     if (!ObjectId.isValid(userId)) {
         throw new Error("El ID proporcionado no es válido");
     }
 
     await client.connect();
-
+    console.log(userData)
     const targetDate = new Date(futureDate);
     const currentDate = new Date();
 
@@ -173,12 +207,17 @@ export async function updateUserAccessAndTimeAlive(userId, userData) {
         { 
             $set: { 
                 allowAllAccess: allowAllAccess, 
+                paymentHistory: paymentHistory, 
+                selectedMonth: selectedMonth,
                 futureDate: targetDate, 
-                daysLeft: timeAlive 
+                daysLeft: timeAlive,
+                category
             }
         },
         { returnDocument: 'after' }
     );
+
+    console.log('UPDATED USER =>', updatedUser);
 
     if (!updatedUser) {
         throw new Error('Usuario no encontrado');
@@ -186,3 +225,5 @@ export async function updateUserAccessAndTimeAlive(userId, userData) {
 
     return updatedUser;
 }
+
+

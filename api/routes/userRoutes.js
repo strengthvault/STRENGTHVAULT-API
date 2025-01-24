@@ -6,7 +6,8 @@ import {
     logout,
     getAllUsersController, 
     updateUserAccessController, 
-    deleteUserController 
+    deleteUserController, 
+    getUserIdController
 } from '../controllers/userController.js';
 
 
@@ -20,6 +21,7 @@ import {
     deleteBlogController 
 } from './../controllers/blogController.js';
 
+
 const router = express.Router();
 
 router.post('/api/users/register', register);
@@ -27,6 +29,7 @@ router.post('/api/login', login);
 router.post('/api/logout', logout)
 
 router.get('/api/users', getAllUsersController);
+router.get('/api/user/:id', getUserIdController);
 
 // Elimina multer de las rutas de subida
 router.post('/api/blogs/upload', uploadBlogController); // Sin multer

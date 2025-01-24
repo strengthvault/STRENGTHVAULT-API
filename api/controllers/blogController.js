@@ -27,7 +27,8 @@ export async function uploadBlogController(req, res) {
         const blog = await uploadBlog({
             nombre: req.body.nombre,
             descripcion: req.body.descripcion,
-            url: 'https://www.youtube.com/watch?v=pXMyhv7jTdU&ab_channel=StrengthIsScience', // Guarda la URL de Vimeo
+            jerarquia: req.body.jerarquia,
+            url: '', // Guarda la URL de Vimeo
             fecha: new Date(),
             categoria: req.body.categoria,
             uploadedBy: req.userId
@@ -62,7 +63,7 @@ export async function updateBlogController(req, res) {
             const updatedBlogData = await updateBlog(userId, {
                 nombre: req.body.nombre,
                 descripcion: req.body.descripcion,
-                url: 'https://www.youtube.com/watch?v=pXMyhv7jTdU&ab_channel=StrengthIsScience', //videoUrl, // Guarda la URL de Vimeo
+                jerarquia: req.body.jerarquia,
                 fecha: new Date(),
                 categoria: req.body.categoria,
             });
@@ -91,18 +92,7 @@ export async function getBlogByIdController(req, res) {
 export async function getAllBlogsController(req, res) {
     try {
         const blogs = await getAllBlogs();
-
-        // Verifica el estado de cada video
-        /*const blogsWithStatus = await Promise.all(blogs.map(async (blog) => {
-            const videoId = blog.url.split('/').pop();  // Extraer el ID del video desde la URL de Vimeo
-            const status = await checkVideoStatus(videoId);
-            return {
-                ...blog,
-                videoStatus: status
-            };
-        }));*/
-
-        res.status(200).json(/*blogsWithStatus*/ blogs);
+        res.status(200).json(blogs);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
