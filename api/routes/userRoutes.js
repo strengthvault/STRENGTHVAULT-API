@@ -33,7 +33,7 @@ router.get('/api/user/:id', getUserIdController);
 
 // Elimina multer de las rutas de subida
 router.post('/api/blogs/upload', uploadBlogController); // Sin multer
-router.get('/api/blogs/:id', getBlogByIdController);
+router.get('/api/blogs/:userId/:videoId', getBlogByIdController);
 router.get('/api/blogs', getAllBlogsController);
 router.put('/api/blogs/:id', updateBlogController); // Sin multer
 router.delete('/api/blogs/:id', deleteBlogController);
